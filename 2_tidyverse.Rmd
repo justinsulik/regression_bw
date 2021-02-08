@@ -1,0 +1,386 @@
+---
+title: '2: The tidyverse'
+author: "Justin Sulik"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(plotly)
+library(knitr)
+```
+
+## Modern R: the Tidyverse
+
+- The tidyverse is just a collection of packages
+   - tidyr
+   - dplyr
+   - ggplot
+   - ...
+
+- You can think of it as a manual car vs an automatic car
+
+## Modern R: the Tidyverse
+
+Some reasons we're using it:
+
+- streamlining your workflow
+- making the code easier to read
+- great for manipulating data
+ 
+## Basic concept: the pipe
+
+Often we need to do a series of operations on something
+
+- either create a bunch of new values, step by step:
+
+```{r, out.width='100%', eval=F}
+input
+output1 <- do_something(input)
+output2 <- do_something_else(output1)
+...
+```
+
+- or embed the functions
+
+```{r, out.width='100%', eval=F}
+output2 <- do_something_else(do_something(input))
+```
+
+## Example 1: no pipes
+
+<div style="float: left; width:50%">
+```{r, out.width='100%'}
+set.seed(123)
+input <- rnorm(100, 5, 3)
+step1 <- mean(input)
+step2 <- round(step1, 2)
+step2
+```
+</div>
+
+<div style="float: right; width:50%">
+```{r, out.width='100%'}
+set.seed(123)
+round(mean(rnorm(100,5,3)),2)
+```
+</div>
+
+## Example 2: pipes
+
+```{r, eval=F}
+input >
+  do_something >
+  do_something_else
+```
+
+Except that custom operators in R usually have %...% around them
+
+```{r, eval=F}
+input %>%
+  do_something %>%
+  do_something_else
+```
+
+## Example 2: pipes
+
+```{r}
+set.seed(123)
+
+rnorm(100, 5, 3) %>%
+  mean %>%
+  round(2)
+```
+
+## Let's get some data
+
+```{r}
+sci_denial <- read_csv("data/science_denial.csv")
+demographics <- read_csv("data/demographics.csv")
+```
+
+## Check out the data
+
+```{r}
+head(demographics)
+```
+
+## Check out the data
+
+```{r}
+summary(demographics)
+```
+
+## Check out the data
+
+```{r}
+str(demographics)
+```
+
+## Check out the data
+
+```{r}
+names(demographics)
+```
+
+
+## Tidyverse verbs: Filtering and selecting
+
+```{r, eval=F}
+filter(data, ...conditions for rows...)
+
+select(data, ...column identifiers...)
+```
+
+## Select columns {.smaller}
+
+```{r}
+demographics %>% 
+  select(participant, age)
+```
+
+## Select columns {.smaller}
+
+```{r}
+demographics %>% 
+  select(-participant, -age)
+```
+
+## Select columns {.smaller}
+
+How to get a range of columns?
+
+```{r}
+sci_denial %>% 
+  select(credibility_0:credibility_5)
+```
+
+## Select columns {.smaller}
+
+How to get a range of columns?
+
+```{r}
+sci_denial %>% 
+  select(starts_with("credibility"))
+```
+
+## Filter rows {.smaller}
+
+```{r}
+demographics %>% 
+  filter(english==1)
+```
+
+## Filter rows {.smaller}
+
+ & = and; | = or; ! = not
+
+```{r}
+demographics %>% 
+  filter(english==1 | education==6)
+```
+
+## Filter rows {.smaller}
+
+```{r}
+demographics %>% 
+  filter(english==1, education==6)
+```
+
+## Filter rows {.smaller}
+
+```{r}
+demographics %>% 
+  filter(english==1, education==6, age < 60)
+```
+
+## Gather (wide to long)
+
+```{r}
+sci_denial %>% 
+  gather(item, response, credibility_0:sciKnowledge_9)
+```
+
+## Gather (wide to long)
+
+```{r}
+sci_denial %>% 
+  gather(item, response, -participant)
+```
+
+## Gather (wide to long)
+
+- Opposite is "spread"
+
+- Why long data?
+   - easier to summarise (in 5 minutes)
+   - easier to run fancy regressions (tomorrow)
+ 
+## Separate (split column data)
+
+- Opposite is "unite"
+
+```{r}
+sci_denial %>% 
+  gather(item, response, -participant) %>% 
+  separate(item, c("scale", "question"))
+```
+
+## Group_by and summarise
+
+```{r}
+demographics %>% 
+  group_by(gender) %>% 
+  summarise(age=mean(age))
+```
+
+## Group_by and summarise
+
+```{r}
+demographics %>% 
+  group_by(gender) %>% 
+  summarise(age=mean(age),
+            n=n())
+```
+
+## Group_by and summarise
+
+```{r}
+demographics %>% 
+  group_by(gender) %>% 
+  summarise_if(is.numeric, mean)
+```
+
+## Exercise
+
+Use `group_by` and `summarise` on the `sci_denial` data, to calculate an average score for each participant for scale.
+
+(if you finish soon: use `?spread` to try return this to wide format)
+
+## Mutate
+
+Change a column or create a new column
+
+```{r}
+demographics %>% 
+  mutate(decade = round(age/10, 0))
+```
+
+! Be *very* cautious about loosing information in this way
+
+## Mutate
+
+Change a column or create a new column
+
+```{r}
+demographics %>% 
+  mutate(senior = ifelse(age>=60, TRUE, FALSE))
+```
+
+## Mutate
+
+Change a column or create a new column
+
+```{r}
+demographics %>% 
+  mutate(gender = ifelse(gender %in% c("male", "female", "na"),
+                         gender,
+                         "nb")) 
+```
+
+**ALWAYS double check it has worked as expected. Think of a way to check the above mutation**
+
+## Exercise
+
+Open the `personality` data file
+
+Calculate a score for each personality construct (A = agreeableness; C = Conscientiousness; E = Extraversion; N = Neuroticism; O = Openness). 
+
+Put that score in separate columns, one for each construct. 
+
+## Joining dataframes by common columns {.smaller}
+
+```{r}
+demographics %>% 
+  left_join(sci_denial) %>% 
+  head(5)
+```
+
+**Think of two ways to join tables that -- for whatever reason --  have 'participant' in one table and 'ID' in the other table, both referring to the same thing**
+
+## Joining dataframes by common columns {.smaller}
+
+```{r, message=F, warning=F}
+demographics %>% 
+  left_join(
+    sci_denial %>% 
+      gather(item, response, -participant) %>% 
+      separate(item, c("scale", "question")) %>% 
+      group_by(participant, scale) %>% 
+      summarise(score = mean(response)) %>% 
+      spread(scale, score)
+  ) %>% 
+  head(5)
+```
+
+## Other useful functions
+
+```{r}
+beads <- read_csv("data/beads.csv")
+```
+
+<video width="320" height="240" controls>
+  <source src="images/demo.mp4" type="video/mp4">
+</video>
+
+## Other useful functions
+
+lag - return value from previous row
+
+```{r}
+beads %>% 
+  mutate(previous_bead = lag(bead),
+         same = ifelse(bead==previous_bead, T, F))
+```
+
+**What verb that we've learned can help ensure each participant's first "same" is NA?**
+
+## Other useful functions {.smaller}
+
+cumulative functions - e.g. cumsum
+
+```{r}
+beads %>% 
+  mutate(bead = ifelse(bead=="white", 1, 0)) %>% 
+  group_by(participant) %>% 
+  mutate(white_beads = cumsum(bead))
+```
+
+## Other useful functions
+
+arrange - ordering columns
+
+```{r}
+demographics %>% 
+  arrange(age) %>% 
+  head(5)
+```
+
+**What if we want oldest to youngest?**
+
+## Summary
+
+- Don't be afraid to mess around with your data
+
+- Just check at every stage that it's doing what you expect
+
+- This is tough to remember: 
+    - copy+paste+adapt
+    - needs practice
+
+## Exercise (if time remaining)
+
+What if the last 4 items of the scienceKnowledge scale measure something specific: science denial?
+
+Update previous code to generate two separate scores for science knowledge and science denial. 
+

@@ -1,0 +1,188 @@
+---
+title: '3: Regression (1)'
+author: "Justin Sulik"
+output: 
+    ioslides_presentation:
+        smaller: true
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(plotly)
+library(knitr)
+library(faux)
+theme_set(theme_bw())
+```
+
+## With categorical predictors
+
+```{r, echo=F, message=F}
+weight_data <- read_csv("data/weight.csv") %>%  
+  filter(age>20) %>% 
+  mutate(gender = ifelse(male==1, "male", "female")) 
+```
+
+```{r, echo=F, fig.height=3}
+weight_data %>% 
+  ggplot(aes(x=gender, y=weight_kg)) + 
+  geom_violin() + 
+  stat_summary(fun=mean, geom="point", color="red") 
+```
+
+**Check what the mean values are per gender**
+
+## With categorical predictors
+
+One category is chosen as the base/reference level: the first alphabetically.
+
+- Other categories count as a distance of 1 from that category
+ - beta = slope = change in y/change in x
+ - if x = 1: change in y per category
+ 
+## With categorical predictors
+
+```{r}
+mod_gender <- lm(weight_kg ~ gender,weight_data)
+summary(mod_gender)
+```
+
+## With categorical predictors
+
+What if we want the other to be the reference level?
+
+```{r}
+gender_levels <- c("male", "female")
+
+weight_data %>% 
+  mutate(gender = factor(gender, levels=gender_levels)) %>% 
+  lm(weight_kg ~ gender,.) %>% 
+  summary
+```
+
+## 3+ categories?
+
+```{r, echo=F}
+data(iris)
+
+ggplot(iris, aes(x=Species, y=Sepal.Length)) + 
+  geom_violin() + 
+  stat_summary(fun = mean,
+               color="red",
+               geom = "point") + 
+  labs(title="Iris species")
+```
+
+## 3+ categories?
+
+All betas are the different from the reference level
+
+```{r}
+mod_iris <- lm(Sepal.Length ~ Species,iris) 
+summary(mod_iris)
+```
+
+What can we do if we want to know more than whether "versicolor" and "virginica" differ from "setosa"?
+
+## 3+ categories?
+
+First, try the simple way: rearrange your data to highlight what you want to know
+
+## 3+ categories?
+
+Slightly more complicated (and in this case, unnecessary) way: use a package to compare each pair
+
+```{r}
+library(emmeans)
+iris_species <- emmeans(mod_iris, "Species")
+pairs(iris_species)
+```
+
+## Regression vs. anova/t-test/etc.
+
+Look at [https://lindeloev.github.io/tests-as-linear/](https://lindeloev.github.io/tests-as-linear/)
+
+## Multiple regression
+
+y ~ intercept + bx + error
+
+Why not:
+
+$y \sim b_0 + b_1*x_1 + b_2*x_2 + ... + \epsilon$
+
+## Multiple regression (special case)
+
+Starting with faux data
+
+What's the correlation between x1 and x2 here?
+
+```{r}
+faux_data <- rnorm_multi(n = 100,
+                  mu = c(3, 2, 1),
+                  sd = c(3, 3, 3),
+                  r = c(0.3, 0.5, 0),
+                  varnames = c("outcome", "x1", "x2"),
+                  empirical = TRUE)
+```
+
+## Multiple regression (special case)
+
+```{r, echo=F}
+
+fig <- plot_ly(faux_data, 
+               x = ~x1, y = ~x2, z = ~outcome)
+fig <- fig %>% add_markers(size=3)
+fig <- fig %>% layout(scene = list(
+  xaxis = list(title = 'x1'),
+  yaxis = list(title = 'x2'),
+  zaxis = list(title = 'outcome')
+  )
+)
+
+fig
+```
+
+## Multiple regression (special case)
+
+```{r}
+lm(outcome ~ x1 + x2, faux_data) %>% 
+  summary
+```
+
+Are the betas what you expect? The $R^2$ = 0.34. This tells us how much variance in y we can predict, given x1 and x2 (more on this later)
+
+## Collinearity
+
+But having two completely uncorrelated predictors is unusual.
+
+How much of a difference does it make if they are correlated?
+
+When do we need to worry?
+
+[https://justinsulik.shinyapps.io/collinearity/](https://justinsulik.shinyapps.io/collinearity/)
+
+## What to do?
+
+- If very correlated, are they really telling you anything new?
+- Do they reflect the same underlying phenomenon?
+    - Consider SEM
+- Is it theoretically reasonable to average them?
+- Is it theoretically interesting that one drops out?
+- Is it theoretically reasonable to leave one out?
+
+## Collinearity
+
+Go back and model the weight data with 2 predictors: height and gender.
+
+What happens?
+
+## Taking a step back: what do we want out of our models?
+
+- Reduce unexplained variance
+- More predictors will usually do that...
+- But what are the dangers?
+    - overfitting
+    - lack of generalizability
+    - less parsimony
+ 
+- So what should I rely on?
+   - THEORY

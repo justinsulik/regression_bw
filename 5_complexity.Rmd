@@ -1,0 +1,846 @@
+---
+title: '5: Increasing complexity: interactions and polynomials'
+author: "Justin Sulik"
+output: 
+    ioslides_presentation:
+        smaller: true
+---
+
+```{r, include=F}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(plotly)
+library(knitr)
+library(faux)
+library(ggpubr)
+
+theme_set(theme_bw())
+```
+
+## So far...
+
+- We have been considering main/linear effects
+    - What's the effect of x1 on y? Of x2?
+    - Yes, they can change due to collinearity
+    - But it's still a main effect: 
+    - For a given dataset, we modelled the effect of x as unchanging
+    
+## Up next...
+    
+- But how might the effect of x change?
+    - The effect of x gets higher/lower for higher/lower values of x
+    - The effect of x1 gets higher/lower for higher/lower values of x2
+    
+## Up next...
+    
+- But how might the effect of x change?
+    - The effect of x gets higher/lower for higher/lower values of x $\longrightarrow$ **higher-order polynomial**
+    - The effect of x1 gets higher/lower for higher/lower values of x2 $\longrightarrow$ **interaction**
+
+## Quadratic (increasing)
+
+```{r}
+set.seed(123)
+data_quad <- data.frame(x=rnorm(100,5,2),
+                        beta1=rnorm(100,2,2),
+                        beta2=rnorm(100,1,1)) %>% 
+  mutate(y=beta1*x + beta2*x^2)
+
+ggplot(data_quad, 
+       aes(x=x, y=y)) + 
+  geom_point(alpha=0.4) + 
+  stat_smooth(method=lm, 
+              formula = y ~ x + I(x^2))
+```
+
+## Quadratic (decreasing)
+
+```{r}
+set.seed(1234)
+data_quad <- data.frame(x=rnorm(100,2,2),
+                        beta1=rnorm(100,2.3,0.5),
+                        beta2=rnorm(100,-0.1,0.01)) %>% 
+  mutate(y=beta1*x + beta2*x^2)
+
+ggplot(data_quad, 
+       aes(x=x, y=y)) + 
+  geom_point(alpha=0.4) + 
+  stat_smooth(method=lm, 
+              formula = y ~ x + I(x^2)) 
+```
+
+## Quadratic
+
+$y \sim b_0 + b_1*x + b_2*x^2$
+
+Can you think of any reasonable examples?
+
+What's the harm in ignoring it?
+
+When should I care? THEORY (+ fit)
+
+## Model comparison {.smaller}
+
+Try to improve fit, but only if it's worth it
+
+BIC = one measure of "worth it"; prefers more parsimonious models
+
+```{r, echo=T}
+mod_linear <- lm(y~x,data_quad)
+summary(mod_linear)
+```
+
+## Model comparison {.smaller}
+
+Try to improve fit, but only if it's worth it
+
+BIC = one measure of "worth it"; prefers more parsimonious models
+
+```{r, echo=T}
+mod_quadratic <- lm(y~x+I(x^2),data_quad)
+summary(mod_quadratic)
+```
+
+## Model comparison
+
+```{r}
+BIC(mod_linear, mod_quadratic)
+```
+
+## Model comparison {.smaller}
+
+Lower BIC = better
+
+Difference in BIC  Claim
+-----------------  ---------
+<2.0               Weak
+2.0–5.9            Positive 
+6.0–9.9            Strong 
+≥10.0              Very strong
+-----------------  ---------
+
+[https://sites.stat.washington.edu/raftery/Research/PDF/socmeth1995.pdf](https://sites.stat.washington.edu/raftery/Research/PDF/socmeth1995.pdf)
+
+## Interactions
+
+- What is an interaction?
+  - Verbal
+  - Visual
+  - Math
+- Re-leveling factors/centering variables
+- Power
+- When you *should* include an interaction
+
+## Example without an interaction
+
+- Imagine you are developing a new feed for salmon farming
+- Let's say on average it produces a 300g increase in fish size
+
+```{r fish_data1, cache=T}
+fish_data <- data.frame(gender=rep(c("male", "female"), 1000),
+         feed = rep(c("control", "new"), each=1000)) %>% 
+  mutate(weight = rnorm(2000, 2000, 400),
+         weight = ifelse(gender=="male", weight+400, weight),
+         weight = ifelse(feed=="new", weight+300, weight))
+```
+
+```{r, out.width="70%"}
+fish_data %>% 
+  ggplot(aes(x=feed, y=weight)) + 
+  geom_point(position="jitter",
+             alpha=0.4) +
+  stat_summary(fun=mean,
+               geom="point",
+               color="red",
+               shape=18,
+               size=10) + 
+  labs(y="weight (g)",
+       title="Effect of feed type")
+```
+
+## Example without an interaction
+
+- But then you remember that male fish are 400g bigger on average
+- Want to check you've controlled for that
+
+```{r, out.width="70%"}
+fish_data %>% 
+  ggplot(aes(x=gender, y=weight)) + 
+  geom_point(position="jitter",
+             alpha=0.4) +
+  stat_summary(fun=mean,
+               geom="point",
+               color="red",
+               shape=18,
+               size=10) + 
+  labs(y="weight (g)",
+       title="Effect of gender")
+```
+
+## Example without an interaction
+
+- So we have 2 main effects:
+    - new feed: +300g
+    - gender male: +400g
+    
+- Assuming these *effects* are independent of each other, and given that an average female fish on the regular feed weighs 2000g, what would you expect the average weight to be for:
+    - a female on the new feed?
+    - a male on the regular feed?
+    - a male on the new feed?
+  
+**Note: this is not about a correlation betw. gender and feed. What would that even mean?**
+
+## Example without an interaction
+
+- weight = $b_0 + b_1*gender + b_2*feed$
+    - (imagine female = 0, male = 1; control=0, new=1)
+- weight = $2000 + 400*gender + 300*feed$
+
+```{r, echo=T}
+mod1 <- lm(weight ~ gender + feed,
+           data=fish_data)
+coef(mod1)
+```
+
+
+## Example without an interaction
+
+- What's the name of this shape?
+
+```{r}
+fish_data %>% 
+  ggplot(aes(x=feed, 
+             y=weight,
+             color=gender,
+             group=gender)) + 
+  geom_point(position="jitter",
+             alpha=0.4) + 
+  stat_summary(fun = mean,
+               geom = "point",
+               shape = 18,
+               size = 10) 
+```
+
+## Example without an interaction
+
+- What's the name of this shape?
+
+```{r}
+fish_data %>% 
+  ggplot(aes(x=feed, 
+             y=weight,
+             color=gender,
+             group=gender)) + 
+  geom_point(position="jitter",
+             alpha=0.1) + 
+  stat_summary(fun = mean,
+               geom = "point",
+               shape = 18,
+               size = 10) +
+  geom_segment(x = "control", y=2000,
+               xend = "control", yend = 2400,
+               color = "black",
+               size = 2) +
+  geom_segment(x = "control", y=2400,
+               xend = "new", yend = 2700,
+               color = "black",
+               size = 2) +
+  geom_segment(x = "new", y=2700,
+               xend = "new", yend = 2300,
+               color = "black",
+               size = 2) +
+  geom_segment(x = "new", y=2300,
+               xend = "control", yend = 2000,
+               color = "black",
+               size = 2)
+```
+
+
+## What is an interaction?
+
+- Imagine the new feed had a different effect on males and female fish
+- E.g.,  +400g for females; +200g for males
+- Thus, the effect of one variable depends on the value of another 
+
+## What is an interaction?  
+
+
+```{r fish_data2, cache=T}
+fish_data_interaction <- data.frame(gender=rep(c("male", "female"), 1000),
+         feed = rep(c("control", "new"), each=1000)) %>% 
+  mutate(weight = rnorm(2000, 2000, 200),
+         weight = ifelse(gender=="male", weight+400, weight),
+         weight = ifelse(feed=="new", weight+400, weight), 
+         weight = ifelse(feed=='new' & gender=='male', weight-200, weight))
+```
+
+```{r}
+fish_data_interaction %>% 
+  ggplot(aes(x=feed, 
+             y=weight,
+             color=gender, 
+             group=gender)) + 
+  geom_point(position="jitter",
+             alpha=0.1) + 
+  stat_summary(fun = mean,
+               geom = "point",
+               shape = 18,
+               size = 10) +
+  geom_segment(x = "control", y=2000,
+               xend = "control", yend = 2400,
+               color = "black",
+               size = 2) +
+  geom_segment(x = "control", y=2400,
+               xend = "new", yend = 2600,
+               color = "black",
+               size = 2) +
+  geom_segment(x = "new", y=2600,
+               xend = "new", yend = 2400,
+               color = "black",
+               size = 2) +
+  geom_segment(x = "new", y=2400,
+               xend = "control", yend = 2000,
+               color = "black",
+               size = 2)
+```
+
+## What is an interaction?  
+
+```{r}
+fish_data_interaction %>% 
+  ggplot(aes(x=feed, 
+             y=weight,
+             color=gender, 
+             group=gender)) + 
+  geom_point(position="jitter",
+             alpha=0.1) + 
+  stat_summary(fun = mean,
+               geom = "point",
+               shape = 18,
+               size = 10) +
+  geom_segment(x = "control", y=2000,
+               xend = "control", yend = 2400,
+               color = "black",
+               size = 2) +
+  geom_segment(x = "control", y=2400,
+               xend = "new", yend = 2600,
+               color = "black",
+               size = 2) +
+  geom_segment(x = "new", y=2600,
+               xend = "new", yend = 2400,
+               color = "black",
+               size = 2) +
+  geom_segment(x = "new", y=2400,
+               xend = "control", yend = 2000,
+               color = "black",
+               size = 2) +
+  annotate(geom="text",
+           label="+400",
+           x=1.5,
+           y=2100) + 
+  annotate(geom="text",
+           label="+200",
+           x=1.5,
+           y=2600)
+```
+
+## What is an interaction?  
+
+
+```{r}
+fish_data_interaction %>% 
+  ggplot(aes(x=feed, 
+             y=weight,
+             color=gender, 
+             group=gender)) + 
+  geom_point(position="jitter",
+             alpha=0.1) + 
+  stat_summary(fun = mean,
+               geom = "point",
+               shape = 18,
+               size = 10) +
+  geom_segment(x = "control", y=2000,
+               xend = "control", yend = 2400,
+               color = "black",
+               size = 2) +
+  geom_segment(x = "control", y=2400,
+               xend = "new", yend = 2600,
+               color = "black",
+               size = 2) +
+  geom_segment(x = "new", y=2600,
+               xend = "new", yend = 2400,
+               color = "black",
+               size = 2) +
+  geom_segment(x = "new", y=2400,
+               xend = "control", yend = 2000,
+               color = "black",
+               size = 2) +
+  annotate(geom="text",
+           label="+400",
+           x=0.9,
+           y=2200) + 
+  annotate(geom="text",
+           label="+200",
+           x=2.1,
+           y=2500)
+```
+
+## What is an interaction?  | Your turn
+
+- weight = $b_0 + b_1*gender + b_2*feed + b_3*gender*feed$
+  - (gender: female = 0, male = 1; feed: control = 0, new = 1)
+- Try map the parameters onto by-group means!
+
+## What is an interaction?  | Adding in an interaction
+
+```{r}
+fish_data_interaction %>% 
+  ggplot(aes(x=feed, 
+             y=weight,
+             color=gender, 
+             group=gender)) + 
+  geom_point(position="jitter",
+             alpha=0.1) + 
+  stat_summary(fun = mean,
+               geom = "point",
+               shape = 18,
+               size = 10) +
+  geom_segment(x = "control", y=2000,
+               xend = "control", yend = 2400,
+               color = "black",
+               size = 2) +
+  geom_segment(x = "control", y=2400,
+               xend = "new", yend = 2600,
+               color = "black",
+               size = 2) +
+  geom_segment(x = "new", y=2600,
+               xend = "new", yend = 2400,
+               color = "black",
+               size = 2) +
+  geom_segment(x = "new", y=2400,
+               xend = "control", yend = 2000,
+               color = "black",
+               size = 2) + 
+  geom_segment(x = "control", y=2400,
+               xend = "new", yend = 2800,
+               color = "grey",
+               size = 1) +
+  geom_segment(x = "new", y=2800,
+               xend = "new", yend = 2600,
+               color = "grey",
+               size = 1) +
+  annotate(geom="text",
+           x=0.9,
+           y=2200,
+           label="+400") + 
+  annotate(geom="text",
+           x=1.5,
+           y=2100,
+           label="+400")
+```
+
+## What is an interaction? 
+
+```{r}
+mod2 <- lm(weight ~ gender*feed, 
+           fish_data_interaction)
+coef(mod2)
+```
+
+```{r}
+fish_data_interaction %>% 
+  group_by(gender,feed) %>% 
+  summarise(m=mean(weight))
+```
+
+
+## What is an interaction?
+
+- Verbally: Are the effects independent? Or does the strength of one effect depend on the value of the other?
+- Visually: parallelogram or not?
+    - *Always* plot your data!
+- Mathematically: $b_1x_1 + b_2x_2 + b_3x_1x_2$
+
+## What is an interaction?
+
+- We had **a reason** to look for an interaction term (mileage can vary)
+    - Knowing gender has an effect on size
+    - Wanting to know if the feed works on all salmon
+    - Wanting to know whether the mechanism by which the feed increases size has anything to do with gender-variable hormones, 
+    - etc. 
+    
+- Your analyses **should** be theory driven
+
+## Centering/relevelling 
+
+What if we exclude the interaction term?
+
+Run a linear regression with just the two main effects (data: `fish_data_interaction`)
+
+## Centering/relevelling | Why did the numbers change?
+
+```{r}
+mod3 <- lm(weight~gender+feed, 
+           fish_data_interaction)
+summary(mod3)
+```
+
+## Centering/relevelling | Why did the numbers change?
+
+```{r}
+fish_data_interaction %>% 
+  ggplot(aes(x=feed, 
+             y=weight,
+             color=gender, 
+             group=gender)) + 
+  geom_point(position="jitter",
+             alpha=0.1) + 
+  stat_summary(fun = mean,
+               geom = "point",
+               shape = 18,
+               size = 10) +
+  geom_segment(x = "control", y=2000,
+               xend = "control", yend = 2400,
+               color = "black",
+               size = 2) +
+  geom_segment(x = "control", y=2400,
+               xend = "new", yend = 2600,
+               color = "black",
+               size = 2) +
+  geom_segment(x = "new", y=2600,
+               xend = "new", yend = 2400,
+               color = "black",
+               size = 2) +
+  geom_segment(x = "new", y=2400,
+               xend = "control", yend = 2000,
+               color = "black",
+               size = 2) +
+  annotate(geom="text",
+           label="+400",
+           x=0.9,
+           y=2200) + 
+  annotate(geom="text",
+           label="+200",
+           x=2.1,
+           y=2500) + 
+  annotate(geom="text",
+           label="+400",
+           x=1.5,
+           y=2100) + 
+  annotate(geom="text",
+           label="+200",
+           x=1.5,
+           y=2600)
+```
+
+## Centering/relevelling | Where did my effect go?
+
+New example: you're testing whether a new "cognitive enhancement" drug speeds up reaction times in a decision making task. Control group gets a placebo; experimental group gets the drug. Pre- and post-treatment measures. *Assuming* that the drug works:
+
+- What do you expect to happen to the RT in the control group?
+- What do you expect to happen to the RT in the experimental group?
+
+```{r drug_data, cache=T}
+N <- 1000
+drug_data <- data.frame(id = 1:N,
+                        group = rep(c("control", "expt"), each=N/2),
+                        baseline = rnorm(N, 1300, 400),
+                        change = rnorm(N, -400, 400),
+                        nochange = rnorm(N, 0, 400)) %>% 
+  mutate(posttreatment = ifelse(group=="control", baseline+nochange, baseline+change)) %>% 
+  gather(phase, rt, baseline, posttreatment) %>% 
+  select(-change, -nochange)
+```
+
+## Centering/relevelling | Where did my effect go?
+
+```{r}
+drug_data %>% 
+  ggplot(aes(x=phase, y=rt, color=group, group = group)) + 
+  geom_point(alpha=0.4, position="jitter") + 
+  stat_summary(fun = mean,
+               geom = "point",
+               size = 10,
+               shape = 18) +
+  stat_summary(fun = mean,
+               geom = "line", 
+               size = 2)
+```
+
+## Centering/relevelling | Where did my effect go?
+
+Does it look like there's an effect of the drug? Yes!
+
+So do you expect:
+
+- a significant main effect of drug?
+- a significant interaction term?
+
+## Centering/relevelling | Where did my effect go?
+
+- Model just the main effects (data = `drug_data`)
+
+## Centering/relevelling | Where did my effect go?
+
+- Model just the main effects (data = `drug_data`)
+
+```{r}
+mod4 <- lm(rt ~ group + phase, 
+   drug_data)
+
+summary(mod4)
+```
+
+## Centering/relevelling | Where did my effect go?
+
+- Add an interaction term
+
+## Centering/relevelling | Where did my effect go?
+
+- Add an interaction term
+
+```{r}
+mod5 <- lm(rt ~ group*phase, 
+   drug_data)
+
+summary(mod5)
+```
+
+## Centering/relevelling | Where did my effect go?
+
+```{r}
+drug_data %>% 
+  ggplot(aes(x=phase, y=rt, color=group, group = group)) + 
+  geom_point(alpha=0.1, position="jitter") + 
+  stat_summary(fun = mean,
+               geom = "point",
+               size = 10,
+               shape = 18) +
+  stat_summary(fun = mean,
+               geom = "line", 
+               size = 2) + 
+  geom_segment(x = 1.5, 
+               y = 1300,
+               xend = 1.5,
+               yend = 1100,
+               color = "black") + 
+  geom_segment(x = 1, 
+               y = 1300,
+               xend = 2,
+               yend = 1100,
+               color = "black") + 
+  labs(title="Model with main effects only")
+```
+
+## Centering/relevelling | Where did my effect go?
+
+```{r}
+group_means <- drug_data %>% group_by(phase,group) %>% summarise(m=mean(rt)) %>% pull(m)
+
+drug_data %>% 
+  ggplot(aes(x=phase, y=rt, color=group, group = group)) + 
+  geom_point(alpha=0.1, position="jitter") + 
+  stat_summary(fun = mean,
+               geom = "point",
+               size = 10,
+               shape = 18) +
+  stat_summary(fun = mean,
+               geom = "line", 
+               size = 2) + 
+  geom_segment(x = 2, 
+               y = group_means[3],
+               xend = 2,
+               yend = group_means[2],
+               color = "grey") + 
+  geom_segment(x = 1, 
+               y = group_means[2],
+               xend = 2,
+               yend = group_means[2],
+               color = "grey") + 
+  geom_segment(x = 1, 
+               y = group_means[1],
+               xend = 1,
+               yend = group_means[2],
+               color = "black") + 
+  geom_segment(x = 1, 
+               y = group_means[1],
+               xend = 2,
+               yend = group_means[3],
+               color = "black") + 
+  geom_segment(x = 2.01, 
+               y = group_means[2],
+               xend = 2.01,
+               yend = group_means[4],
+               color = "black") +
+  labs(title="Model with interaction term")
+```
+
+## Centering/relevelling | Where did my effect go?
+
+By default:
+
+- No interaction term: population average effect
+- Interaction term (effect of $x_1$ depends on $x_2$):
+   - $b_1x_1$: when $x_2=0$ 
+   - $b_2x_2$: when $x_1=0$ 
+   - $b_3x_1x_2$: here's where $x_1$ and $x_2$ can vary
+   
+## Centering/relevelling | Where did my effect go?
+
+So what does 0 mean here?
+
+By default:
+
+- numeric variable: literal 0
+- categorical variable: first alphabetically (female - male; control - new; baseline - posttreatment; control - expt)
+
+So what can you do?
+
+- center your numeric variables
+- center/relevel your categorical variables
+
+## Centering | Numeric variables
+
+```{r, echo=T}
+drug_data %>% 
+  mutate(rt_scaled = scale(rt)) %>% 
+  head
+```
+
+## Centering | Categorical variables
+
+```{r}
+# Center variables (from https://hlplab.wordpress.com/2009/04/27/centering-several-variables/)
+myCenter <- function(x) {
+  if (is.numeric(x)) { return(x - mean(x, na.rm=T)) }
+  if (is.factor(x)) {
+    x = as.numeric(x)
+    return(x - mean(x, na.rm=T))
+  }
+  if (is.character(x)) {
+    x = as.numeric(as.factor(x))
+    return(x - mean(x, na.rm=T))
+  }
+  if (is.data.frame(x) || is.matrix(x)) {
+    m= matrix(nrow=nrow(x), ncol=ncol(x))
+    colnames(m)= paste("c", colnames(x), sep="")
+    for (i in 1:ncol(x)) {
+      m[,i]= myCenter(x[,i])
+    }
+    return(as.data.frame(m))
+  }
+}
+```
+
+
+```{r, echo=T}
+fish_data_interaction %>% 
+  mutate(gender_centered = myCenter(gender)) %>% 
+  head
+```
+
+## Centering | Categorical variables
+
+```{r}
+drug_data %>% 
+  mutate(phase_centered = myCenter(phase),
+         group_centered = myCenter(group)) %>% 
+  lm(rt ~ phase_centered*group_centered,.) %>% 
+  summary
+```
+
+## Centering | Do I *need* to do this?
+
+No, it depends on your research question
+
+- Fish example: useful to know what the overall effect of gender is
+- Drug example: useful to know that there's no difference at baseline, no effect of phase on control, and only a change in for experimental group post treatment
+
+## Releveling | Changing which is the base level (=0)
+
+Imagine we'd called it "before" and "after" instead of "baseline" and "posttreatment"
+
+```{r}
+drug_data %>% 
+  mutate(phase = ifelse(phase=="baseline", "before", "after")) %>% 
+  ggplot(aes(x=phase, y=rt, color=group)) + 
+  geom_point(alpha=0.1,
+             position = "jitter") + 
+  stat_summary(fun = mean,
+               geom = "point",
+               size = 10,
+               shape = 18)
+```
+
+## Releveling | Changing which is the base level (=0)
+
+Imagine we'd called it "before" and "after" instead of "baseline" and "posttreatment"
+
+```{r}
+drug_data %>% 
+  mutate(phase = ifelse(phase=="baseline", "before", "after")) %>% 
+  lm(rt ~ phase*group,.) %>% 
+  summary
+```
+
+## Releveling | Changing which is the base level (=0)
+
+```{r, echo=T}
+fish_data_interaction %>% 
+  mutate(gender = factor(gender, levels=c("male", "female"))) %>% 
+  lm(weight ~ gender,.) %>% 
+  summary
+```
+
+## Centering/relevelling | Summary
+
+- Which you do (if any) depends on what you're interested in
+- This will change the patterns of significance BUT THAT'S FINE
+
+```{r}
+drug_data %>% 
+  ggplot(aes(x=phase, 
+             y=rt,
+             group=group)) + 
+  geom_point(aes(color=group),
+             position="jitter",
+             alpha=0.1) + 
+  stat_summary(aes(color=group),
+               fun=mean,
+               geom="point",
+               size=10,
+               shape=18,
+               alpha=0.6) + 
+  annotate("segment",
+           x = 1.5, y=900,
+           xend = 1.5, yend = 1300,
+           color = "black",
+           size = 1,
+           arrow = arrow()) +
+  annotate("text",
+           x = 1.5, y=1380,
+           label = "Center") +
+  geom_bracket(xmin = "baseline", xmax = "posttreatment",
+               y.position = 2000,
+               label = "Relevel") 
+```
+
+## Power
+
+What should my sample size be if I need to test for an interaction?
+
+- Big
+
+- VERY INFORMAL rule of thumb: if you need $N$ to detect main effect $b$, might need $4N$ to detect interaction size $b$
+
+- We'll worry more about power tomorrow
+
+## When should you include an interaction?
+
+- If, given your best understanding of the relevant literature, it's plausible that the effect of one variable depends on the value of another
+    - e.g., varies by group
+- If you are wanting to say an effect in one group is larger than another group
+- If you are wanting to combine two similar datasets and check if the effect is similar
