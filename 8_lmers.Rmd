@@ -176,8 +176,10 @@ ggplot(dat_cc2,aes(x=x,y=y)) +
   geom_point() 
 ```
 
+## Re-simulate the data to see if we can generate random slopes
+
 ```{r}
-ggplot(dat_cc,aes(x=x,y=y,color=sub_id)) + 
+ggplot(dat_cc2,aes(x=x,y=y,color=sub_id)) + 
   geom_point() + 
   stat_smooth(method=lm, se=F) + 
   guides(color=F)
@@ -185,9 +187,18 @@ ggplot(dat_cc,aes(x=x,y=y,color=sub_id)) +
 
 ## Re-simulate the data to see if we can generate random slopes
 
+Notice that the variance is heterogeneous. That's ok!
+
 Let's run the regressions again (including a random slope in the lmer)
 
 What, if anything, has changed?
+
+## Possible random effects structures
+
+- Commonly: subject, trial, classroom, etc. 
+- intercept only (1|subject), (1|trial)
+- random slope too (1+x|subject), (1+x|trial)
+- nested (1|class/subject)
 
 ## Choosing a random effects structure
 
@@ -195,17 +206,27 @@ There is conflicting advice on this:
 
 Keep it simple vs keep it maximal
 
+Bates, D., Kliegl, R., Vasishth, S., & Baayen, H. (2015). Parsimonious mixed models. arXiv preprint arXiv:1506.04967.
+
 Barr, D. J., Levy, R., Scheepers, C., & Tily, H. J. (2013). Random effects structure for confirmatory hypothesis testing: Keep it maximal. Journal of Memory and Language, 68(3), 255–278. doi:10.1016/j.jml.2012.11.001
 
 ## Exercise
 
-awards
-https://stats.idre.ucla.edu/r/faq/random-coefficient-poisson-models/
+data: `awards.csv` (source: [https://stats.idre.ucla.edu/r/faq/random-coefficient-poisson-models/](https://stats.idre.ucla.edu/r/faq/random-coefficient-poisson-models/)
 
+- outcome: awards
+- main predictor: gender
+- grouping variable: school (`cid`)
+
+- Plot the data
+- Decide what distribution family to specify
+- Create a mixed-effects model
+- Decide whether to include a random slope
+- Use `predict` to understand how much of a difference
 
 ## Summarising benefits of lmer
 
-- Reasonably robust against missing data/unbalanced designs
+- Reasonably robust against missing data/unbalanced designs 
 - Carefully weigh the benefits of a within-subjects design
     - vs. averaging or requiring independent observations
     - can take the full data into account
@@ -215,7 +236,38 @@ https://stats.idre.ucla.edu/r/faq/random-coefficient-poisson-models/
 - Very flexible. Can be generalized quite easily 
     - E.g. if data not normally distributed
 
+## Where are the p-values?!?!
+
+- Psychology should wean  itself off p-values
+
+- The creators of lme4 decided not to include them, because they are unsure how to calculate DFs for these models
+
+- BUT if you really want some, install/load package `lmerTest`
+
+## Where are the p-values?!?!
+
+- Much better: bootstrap CIs
+
+```{r, eval=F, echo=T}
+bootLmer <- function(.) {
+  c(beta=fixef(.),
+    sigma=sigma(.), 
+    sig01=sqrt(unlist(VarCorr(.))))
+}
+
+awards_boot <- bootMer(mod_awards, 
+                       bootLmer, 
+                       nsim = 1000)
+
+awards_CIs <- boot.ci(awards_boot,
+                      type="basic", 
+                      index=2) #row in model summary: fixed effects
+```
+
+
 ## Resources:
 
-(put some in folder)
+- [http://www.bodowinter.com/resources.html](http://www.bodowinter.com/resources.html)
+
+- [https://www.researchgate.net/publication/221995574_Generalized_Linear_Mixed_Models_A_Practical_Guide_for_Ecology_and_Evolution](https://www.researchgate.net/publication/221995574_Generalized_Linear_Mixed_Models_A_Practical_Guide_for_Ecology_and_Evolution)
 

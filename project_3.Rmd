@@ -1,0 +1,39 @@
+---
+title: "Project 1: visualizing correlations"
+date: "08/02/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      warning = FALSE,
+                      message = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(ggcorrplot)
+library(pander)
+library(Hmisc)
+```
+
+WRITE CODE TO DO THE FOLLOWING, INCLUDE IT IN THIS SCRIPT, THEN KNIT THE SCRIPT WHEN READY
+
+# Project: mixed effects models
+
+Load the politeness_data.csv (source: [http://www.bodowinter.com/resources.html](http://www.bodowinter.com/resources.html))
+
+Main outcome: frequency (Hz) - voice pitch
+Main predictors: attitude (polite vs informal); gender 
+
+Other columns: subject; scenario (basically, social interaction context, like asking for a favor)
+
+Very vague instructions: 
+
+- build various models of voice pitch
+    - Go from simple to complex
+    
+- use AIC function to pick which model you think best
+
+
+
