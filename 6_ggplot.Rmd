@@ -7,13 +7,17 @@ output:
 ---
 
 ```{r, include=F}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, 
+                      warning = FALSE, 
+                      message = FALSE,
+                      fig.height = 4)
 ```
 
 ```{r setup, include=FALSE}
 library(tidyverse)
 library(knitr)
 library(faux)
+library(ggExtra)
 theme_set(theme_bw())
 ```
 
@@ -40,8 +44,6 @@ data.frame(names = c("social\nconformity", "approval",
   labs(y="Predictors",
        x="Beta (95% CIs)",
        title="Effect on compliance behavior")
-  
-
 ```
 
 
@@ -74,13 +76,14 @@ data.frame(names = c("social\nconformity", "approval",
     - x, y axes
     - color, fill
     - size, shape, linetype, ...
-- Can add summaries/styling
-    
+- Aesthetic `aes()` is just mapping data column to plot element
+
 ## Grammar of graphics: Geoms
 
 - How to picture each aesthetic
     - Bar
     - Point
+    - Line
     - Density curve/violin/etc.
     
 ## Example: 1 aesthetic, 3 geoms
@@ -146,7 +149,7 @@ weight_data <- read_csv("data/weight.csv") %>%
   mutate(gender = ifelse(male==1, "male", "female"))
 ```
 
-```{r}
+```{r, echo=T}
 ggplot(weight_data,
        aes(x=height_cm,
            y=weight_kg,
@@ -156,7 +159,7 @@ ggplot(weight_data,
 
 ## Line plots
 
-```{r, echo=F}
+```{r}
 N <- 20
 data_time <- data.frame(time = 1:N,
                         increase_a = rnorm(N, 1, 2),
@@ -167,7 +170,7 @@ data_time <- data.frame(time = 1:N,
   gather(stock, value, -time)
 ```
 
-```{r}
+```{r, echo=T}
 ggplot(data_time, 
        aes(x=time,
            y=value,
@@ -183,9 +186,9 @@ stat_summary(fun=...)
 stat_smooth(method=...)
  - generate a spline 
  
- ## Stat_summary
+## Stat_summary
 
-```{r}
+```{r, echo=T}
 ggplot(weight_data, 
        aes(x=gender, y=weight_kg)) + 
   geom_point(alpha=0.4) + 
@@ -202,7 +205,7 @@ ggplot(weight_data,
 ggplot(weight_data, 
        aes(x=gender, y=weight_kg)) + 
   geom_point(alpha=0.4,
-             position = position_jitter(0.1)) + 
+             position = "jitter") + 
   stat_summary(fun = "mean",
                color = "red",
                geom = "point",
@@ -215,7 +218,12 @@ If you're ever having trouble with stat_summary geom="line" (lines look crazy, l
 ## Stat_smooth
 
 ```{r}
-ggplot(weight_data,
+full_weight_data <- read_csv("data/weight.csv") %>%  
+  mutate(gender = ifelse(male==1, "male", "female"))
+```
+
+```{r, echo=T}
+ggplot(full_weight_data,
        aes(x=height_cm,y=weight_kg)) + 
   geom_point(alpha=0.4)+
   stat_smooth()
@@ -223,8 +231,8 @@ ggplot(weight_data,
 
 ## Stat_smooth
 
-```{r}
-ggplot(weight_data,
+```{r, echo=T}
+ggplot(full_weight_data,
        aes(x=height_cm,y=weight_kg)) + 
   geom_point(alpha=0.4)+
   stat_smooth(method=lm)
@@ -241,15 +249,13 @@ But it is *definitely* worth adding more explicit labels:
 ## Marginal plots
 
 ```{r}
-library(ggExtra)
-```
-
-```{r}
 main_plot <- ggplot(weight_data,
                     aes(x=height_cm,
                         y=weight_kg)) + 
-  geom_point(alpha=0.4)
-ggMarginal(main_plot)
+  geom_point(alpha=0.4) + 
+  labs(x="Height (cm)", 
+       y="Weight (kg)")
+ggMarginal(main_plot, fill="#8CC7D6")
 ```
 
 ## Marginal plots
@@ -259,7 +265,10 @@ main_plot <- ggplot(weight_data,
                     aes(x=height_cm,
                         y=weight_kg,
                         color=gender)) + 
-  geom_point(alpha=0.4)
+  geom_point(alpha=0.4) +
+  labs(x="Height (cm)", 
+       y="Weight (kg)")
+
 ggMarginal(main_plot)
 ```
 
@@ -271,7 +280,9 @@ main_plot <- ggplot(weight_data,
                         y=weight_kg,
                         color=gender)) + 
   geom_point(alpha=0.4) + 
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom") + 
+  labs(x="Height (cm)", 
+       y="Weight (kg)")
 ggMarginal(main_plot, groupColour = TRUE)
 ```
 
@@ -282,5 +293,63 @@ ggMarginal(main_plot, groupColour = TRUE)
   - ggcorrplot
   - see [https://www.r-graph-gallery.com](https://www.r-graph-gallery.com)
   
+## Exercise
+
+
+
+- Using `weight_data`, create a plot of weight ~ gender
+
+- Use all of the following geoms/stats:
+    - geom_violin
+    - geom_point with position=position_jitter()
+    - stat_summary (for the mean)
+- Make nice labels
+
+- IF you have enough time:
+    - use geom_errorbar() to add confidence intervals
+        - hint: you can have different datasets for different geoms
+        - use the `bootMeans` function I've provided below
+    - add geom_segment and geom_annotate for significance bars/stars
+
+```{r}
+library(boot)
+summaryBoot <- function(data,groups,var,R=3000){
+  # bootstrap some confidence intervals for GROUPS in DATA
+  # around the mean value of variable VAR
+  # GROUPS is a vector of strings with column names
+  # VAR is a string 
+  if (length(groups)>1) {
+    perms <- unique(data[,groups])
+  } else {
+    perms <- tibble('group' = unique(data[[groups]]))
+    names(perms) <- groups
+  } 
+  permCount <- nrow(perms)
+  meanDf <- c()
+  for (row in 1:permCount){
+    dataTemp <- data %>% right_join(perms[row,])
+    results <- boot(dataTemp,
+                    statistic = meanGroups,
+                    var = var, 
+                    R = R)
+    original <- round(results$t0, 3)
+    c.ints <- boot.ci(results,index=1,type="bca")
+    lower <- round(c.ints$bca[[4]], 3)
+    upper <- round(c.ints$bca[[5]], 3)
+    meanDf <- c(meanDf, c(original,lower,upper))
+  }
+  meanDf <- data.frame(matrix(meanDf, permCount, 3, byrow=TRUE))
+  names(meanDf) <- c(var,'lower','upper')
+  return(cbind(data.frame(perms),meanDf))
+}
+
+meanGroups <- function(data,i,var){
+  ## Called by summaryBoot() to bootstrap some mean values\
+  data <- data[i,]
+  return(mean(data[[var]], 
+              na.rm=TRUE))
+}
+```
+
 
 

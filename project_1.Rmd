@@ -1,0 +1,74 @@
+---
+title: "Project 1: visualizing correlations"
+date: "08/02/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      warning = FALSE,
+                      message = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(ggcorrplot)
+library(Hmisc)
+```
+
+WRITE CODE TO DO THE FOLLOWING, INCLUDE IT IN THIS SCRIPT, THEN KNIT THE SCRIPT WHEN READY
+
+# Project: report correlations
+
+# 1. Calculate personality scores
+
+- Load the data 'personality.csv'
+- Google "Big 5 personality" to see what the letters, O, C, E, A, N stand for
+- Check back to yesterday's tidyverse scripts to refresh your memory on how to aggregate these scores per person
+
+# 1. Plot distributions 
+
+- Plot the distribution of the personality scores
+
+- Add aesthetics to plot these by gender
+
+# 2. Plot correlations
+
+If you turn off eval=F and add in the name of your data frame, the following code will produce a correlation matrix
+
+- (Find a way to drop `id` first)
+
+
+```{r, eval=F}
+M <- ...data frame here... %>% 
+    select(-id) %>% 
+    as.matrix %>% 
+    rcorr
+```
+
+- Use this correlation matrix and ggcorrplot() to plot the correlations (turn off eval=F when ready)
+
+
+```{r, eval=F}
+ggcorrplot(M$r, 
+  #method="circle",
+  #type = "upper",
+  #outline.color = "white",
+  #lab_size = 5,
+  #colors = c("#67001f", "#f7f7f7", "#053061"),
+  #lab = TRUE,
+  #ggtheme = theme_bw,
+  #pch = 1,
+  #pch.col = "#FB9D0B",
+  #pch.cex = 12,
+  #p.mat = M$P,
+  #hc.order = TRUE,
+  #show.legend = FALSE
+)
+```
+
+3. Report the findings
+
+Pick a few findings to report (pick some that look interesting or pick at random). 
+
+Report them in here in the descriptive text using embedded r code (`r `) to extract correlation coefficients (and pvalues) from M (matrixes can be indexed as follows: my_matrix['row_name', 'column_name'])

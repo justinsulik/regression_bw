@@ -1,0 +1,57 @@
+---
+title: "Project 1: visualizing correlations"
+author: "your name here"
+date: "08/02/2021"
+output: 
+    html_document:
+      toc: true
+      toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      warning = FALSE,
+                      message = FALSE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+WRITE CODE TO DO THE FOLLOWING, INCLUDE IT IN THIS SCRIPT, THEN KNIT THE SCRIPT WHEN READY
+
+# Project: example
+
+# 1. Load data
+
+# 2. Write code
+
+Test it out by running the chunks directly
+
+When you're happy they all work, click "knit" in this panel's menu bar
+
+Some (incomplete) code chunks are not evaluate (eval=F); you can turn that off by deleting this bit
+
+Some code chunks can be hidden as follows
+
+```{r, echo=F}
+
+```
+
+# 3. Streamline your reports by embedding r code in the actual text
+
+```{r}
+my_data <- rnorm(100, 4, 2)
+```
+
+The mean response was `r round(mean(my_data), 2)` (SD=`r round(sd(my_data), 2)`).
+
+# 4. If you have time ...
+
+After completing the instructions, try make your report look nice/easy to read for someone else: 
+
+- hide/show chunks depending on whether they're important, tweak plots, etc...
+- add descriptive text
+- make it pretty
+
+

@@ -283,7 +283,7 @@ Change a column or create a new column
 
 ```{r}
 demographics %>% 
-  mutate(gender = ifelse(gender %in% c("male", "female", "na"),
+  mutate(gender = ifelse(!gender %in% c("male", "female", "na"),
                          gender,
                          "nb")) 
 ```

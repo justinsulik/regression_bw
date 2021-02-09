@@ -1,5 +1,5 @@
 ---
-title: '3: Regression (1)'
+title: '4: Regression (2)'
 author: "Justin Sulik"
 output: 
     ioslides_presentation:

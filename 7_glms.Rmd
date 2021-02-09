@@ -1,0 +1,383 @@
+---
+title: '7: Generalized linear regressions'
+author: "Justin Sulik"
+output: 
+    ioslides_presentation:
+        smaller: true
+---
+
+```{r, include=F}
+knitr::opts_chunk$set(echo = FALSE, 
+                      warning = FALSE, 
+                      message = FALSE,
+                      fig.height = 3.5)
+```
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(knitr)
+library(faux)
+library(cowplot)
+library(magrittr)
+theme_set(theme_bw())
+```
+
+## So far
+
+- Linear regressions
+    - Linear relationship between outcome ~ predictor
+    - Residuals normally distributed
+    
+- But not just a list of assumptions!
+   - How are the data generated?
+   - What shape do the data have? (boundaries, skew, ...)
+
+- If these mean that you're not looking at a linear releationship, try a generalized linear model
+
+## Learning outcomes
+
+- Understand what is being generalized in a glm
+- Understand family and link parameters
+- Learn when to use 2 basic cases: Poisson and binomial
+- Be able to extract useful information from the model
+
+## Examples
+
+- Normal(-ish) data generation
+    - Height
+    - Big-5 Personality traits
+    - There are boundaries, but we're seldom near them
+
+- Non-normal data generation
+    - Number of phonecalls to a call center evey 15 mins    - Scores on a general knowledge test
+    - Boundaries are meaningful
+    - Shapes (can be) *very* non-normal
+    
+## Ok, so what does this data look like? 
+  
+What features of this are quite different
+
+```{r}
+data.frame(calls = rpois(100,2)) %>% 
+  ggplot(aes(x=calls)) + 
+  geom_bar() + 
+  labs(x="Number of calls / 15 minutes")
+```
+
+## Ok, so what does this data look like? 
+
+What features of this are quite different
+
+```{r}
+data.frame(test_scores = rbinom(100,10,0.7)) %>% 
+  ggplot(aes(x=test_scores)) + 
+  geom_bar() + 
+  labs(x="Test scores (out of 10)") + 
+  xlim(0,10)
+```
+
+## Generalized linear regression can solve this!
+
+Previously:
+
+- $y = b_0 + b_1x_1 ... + \epsilon$
+- $Expected(y) = b_0 + b_1x_1 + ...$
+
+But why can't $Expected(y)$ have a more complex relationship with $x$?
+
+usually, f(E(y)) = identity (like above)
+
+But how about f(E(y)) = log, inverse, etc.?
+
+## Generalized linear regression can solve this!
+
+$f(E(y)) = b_0 +  b_1x_1 + ...$
+
+e.g.: $log(E(y)) = b_0 +  b_1x_1 + ...$
+
+vs. log transform: $E(log(y)) = b_0 +  b_1x_1 + ...$
+
+log-transformation transforms the data
+
+glm transforms the expected value (and thus, something in the model)
+
+## What's so wrong with a linear regression?
+
+- Linear regression thinks there aren't any boundaries
+- It can cope with non-normal data if you're wanting to see if there's a positive/negative relationship
+- But the fit can seriously bias interpretation 
+
+## What's so wrong with linear regression?
+
+Fake data: 
+
+outcome: final exam pass = 1 vs. fail = 0; predictor: hours/week studying
+
+```{r}
+odds_to_p <- function(odds){
+  return(odds/(1+odds))
+}
+
+N <- 40
+test_data <- data.frame(predictor = rpois(N, 3)) %>% 
+  rowwise %>% 
+  mutate(prob = odds_to_p(predictor))
+
+test_data$outcome <- rbinom(N, 1, test_data$prob)
+```
+
+```{r}
+p_linear <- ggplot(test_data, 
+       aes(x=predictor, y=outcome))  +
+  geom_point() + 
+  stat_smooth(method=lm) + 
+  coord_cartesian(ylim=c(0, 1.5)) +
+  labs(title="linear model")
+
+p_binom <- ggplot(test_data, 
+       aes(x=predictor, y=outcome))  +
+  geom_point() + 
+  stat_smooth(method=glm, 
+              method.args=list(family=binomial)) + 
+  coord_cartesian(ylim=c(0, 1.5))+
+  labs(title="binomial model")
+
+plot_grid(p_linear, p_binom, ncol=2)
+```
+
+## What's so wrong with linear regression?
+
+```{r}
+mod_lm <- lm(outcome~predictor,test_data)
+
+plot(mod_lm, which=1)
+```
+
+## What's so wrong with linear regression?
+
+```{r}
+plot(mod_lm, which=2)
+```
+
+## Is it just about assumptions?
+
+I think focusing on assumptions is *partly* missing the point: these are the symptoms of a problem, not the problem itself
+
+One general theme in this workshop has been to explore the data, see how well we can explain an outcome based on some predictors
+
+Sometimes a linear model is wrong just because it mis-characterizes your data
+
+## Elements of a generalized linear model
+
+A glm adds two things to an lm:
+
+- you specify what distribution family your outcome variable belongs to
+
+    - This is just the kind of thing we were talking about with callcenter calls/test scores: what kind of data do you have
+
+    - see `?family` in RStudio
+
+    - normal (gaussian), binomial, poisson, Gamma, inverse.gaussian, quasibinomial, quasipoisson,
+  
+- you optionally specify how the predictor and (expected) outcome are related
+
+    - links: "identity", "log", "logit", "inverse", ...
+
+## Elements of a generalized linear model
+
+Linear regression:
+
+- `lm(y ~ x,data)`
+
+Same as above:
+
+- `glm(y ~ x,data, family=gaussian(link = "identity"))`
+
+Change family and link
+
+- `glm(y ~ x ,data,family=poisson(link = "log"))`
+
+Or (since log is the "canonical" link for a Poisson regression)
+
+- `glm(y ~ x,data,family=poisson)`
+
+Basically, all you're really doing is thinking "Hmm, my data isn't normal, it looks Poisson, so tell the model that the family is Poisson"
+
+## Elements of a generalized linear model
+
+- So the `glm` allows you to control how your model fits the data in two ways: by specifying a *family* AND by specifying a *link* function
+
+- a transformation (e.g. log(y)) is really just an attempt to handle these in one go:
+    - link="log" and *hopefully* the transformed data is normal-ish
+    - Often doesn't manage to do **both** jobs well
+    - Some distributions can't be transformed to normal
+    
+
+## Families
+
+Setting a distribution family involves explicitly modeling:
+
+- The **shape** of the data 
+    - e.g. skewed RT data
+    
+- The **range** of the data 
+    - e.g. positive (for RT data or count data) 
+    - between 0 and 1 (for a ratio)
+    
+## Families
+
+Don't start out by worrying what a Poisson/Gamma/negative binomial are
+
+Start by thinking about your data and the processes that gave rise to it
+
+See:
+
+- [https://www.essycode.com/distribution-viewer/](https://www.essycode.com/distribution-viewer/)
+
+## Families
+
+Eventually you can build up a sense of what to try 
+
+- google + crossvalidated + wikipedia
+
+- literature, e.g. 
+    - Lo & Andrews, 2015, To transform or not to transform, Frontiers in Psych.
+    - Coxe, West & Aiken, 2009, The analysis of count data, J. Pers. Assess.
+
+- [https://www.johndcook.com/blog/distribution_chart](https://www.johndcook.com/blog/distribution_chart)
+- [http://www.math.wm.edu/~leemis/chart/UDR/UDR.html](http://www.math.wm.edu/~leemis/chart/UDR/UDR.html)
+
+## Families
+
+- Some rules of thumb 
+    - these are just starting points!
+    - (... glossing over more complex relatives: e.g. poisson -> negative binomial)
+    - (... glossing over things to watch out for: e.g. zero-inflation, overdispersion)
+
+- count data: try Poisson  
+
+- success/failures: try binomial
+
+- reaction time: try Gamma
+
+## Summary 
+
+For lm, we were (tacitly) just specifying family=normal
+
+But we can open this up to other families with a glm
+
+Specifying `family` (and, optionally, `link`) is a more general, robust alternative to transformation in cases when a vanilla lm is problematic
+
+It involves trying to model the data as it is, rather than trying to shoehorn the data into normality
+
+## Expercise 1:
+
+Data from [https://stats.idre.ucla.edu/r/dae/logit-regression/](https://stats.idre.ucla.edu/r/dae/logit-regression/)
+
+```{r}
+grad_school <- read_csv("data/binary.csv") %>% 
+  mutate(rank = factor(rank))
+```
+
+## Look at the data
+
+```{r}
+head(grad_school)
+```
+
+## Look at the data
+
+```{r}
+summary(grad_school)
+```
+
+## Think about the outcome
+
+Outcome `admit` has value 0 if an applicant wasn't admitted to grad school, and 1 if they were
+
+What kind of model are we likely to need?
+
+## Run a regression
+
+```{r, eval=F, echo=T}
+mod_gradschool <- glm(...)
+
+summary(mod_gradschool)
+```
+
+## Ok, so what does this all mean?
+
+Linear regression, effects are additive:
+
+- $b_0 + b_1x_1 ...$
+
+Binomial regression, effects are a whole bunch of things:
+
+- multiplicative
+
+- log odds
+
+- for now: negative = lowers chance of success; positive = raises chance of success
+
+- [https://stats.idre.ucla.edu/other/mult-pkg/faq/general/faq-how-do-i-interpret-odds-ratios-in-logistic-regression/](https://stats.idre.ucla.edu/other/mult-pkg/faq/general/faq-how-do-i-interpret-odds-ratios-in-logistic-regression/)
+
+## Finding a way around the issue for now
+
+`predict()` function
+
+Give it some new data, use that to interpret the effects
+
+Keep 2 columns constant, vary the 3rd to see what it does
+
+```{r, echo=T}
+new_data <- data.frame(
+  gre = mean(grad_school$gre), 
+  gpa = mean(grad_school$gpa), 
+  rank = factor(1:4))
+```
+
+## Finding a way around the issue for now
+
+```{r}
+mod_gradschool <- glm(admit ~ gre + gpa + rank,
+                      data=grad_school,
+                      family=binomial)
+```
+
+```{r, echo=T}
+new_data$expected_p <- predict(mod_gradschool, new_data, type="response")
+new_data
+```
+
+## Finding a way around the issue for now
+
+- Try this again, but use other constants for `gre`, `gpa`
+
+- Given that there's no interaction here, do you expect it to make any difference?
+
+## Finding a way around the issue for now
+
+Vary 2 columns: gre and rank
+
+Use newdata2 to predict the response values, and plot them with `aes(x=gre, color=rank)`
+
+```{r}
+min_gre <- min(grad_school$gre)
+max_gre <- max(grad_school$gre)
+new_gre <- rep(seq(from = min_gre, to = max_gre, 
+                   length.out = 100), 4)
+
+newdata2 <- data.frame(
+  gre = new_gre,
+  gpa = mean(grad_school$gpa), 
+  rank = factor(rep(1:4,each = 100)))  
+```
+
+## Final warnings (if you're actually going to use these)
+
+For count data:
+
+- Poisson is a quite basic option, but you may need a negative binomial instead (google: overdispersion)
+- Check for zero-inflation
+
+- See [https://stats.idre.ucla.edu/other/dae/](https://stats.idre.ucla.edu/other/dae/)

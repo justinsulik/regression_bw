@@ -1,0 +1,221 @@
+---
+title: '8: mixed-effects regressions'
+author: "Justin Sulik"
+output: 
+    ioslides_presentation:
+        smaller: true
+---
+
+```{r, include=F}
+knitr::opts_chunk$set(echo = FALSE, 
+                      warning = FALSE, 
+                      message = FALSE)
+```
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(knitr)
+library(faux)
+library(lme4)
+library(magrittr)
+theme_set(theme_bw())
+```
+
+## So far...
+
+Regressions: 
+
+- How does outcome change, for a change in the predictor?
+- how much have we learnt about the outcome, by learning something about the predictor?
+
+Putting aside the list of assumptions, I focused on 2 main worries:
+
+- Is the relationship linear? If no, generalized linear model
+- Are the errors independent? If no, mixed-effects model
+
+## Learning outcomes
+
+- Understand the difference between fixed and random effects
+- Understand why we bother modeling random effects 
+- Use the `lmer()` function to create a simple model
+- Understand main elements of the `lmer()` output
+    
+## Ok, what is the motivation for this?
+
+We're trying to understand/explain something about the outcome 
+
+Tension: reduce unexplained variance vs. avoid overfitting/maintain generality 
+
+LMEMs can help with this! How?
+
+## Simulate some data
+
+```{r}
+set.seed(42)
+dat_cc <- sim_mixed_cc(
+    sub_n = 10,   # subject sample size
+    item_n = 10,  # item sample size
+    grand_i = 10,  # overall mean of the score
+    sub_sd = 8,   # SD of subject random intercepts
+    item_sd = 1,  # SD of item random intercepts
+    error_sd = 2,  # SD of residual error
+    empirical = T
+) 
+
+lines <- nrow(dat_cc)
+beta <- 3
+dat_cc$x <- rnorm(lines, 10, 3)
+dat_cc %<>% 
+  mutate(y = grand_i + beta*x + sub_i + err)
+
+ggplot(dat_cc,aes(x=x,y=y)) + 
+  geom_point()
+```
+  
+## Color by participant
+
+What is going on here?
+
+- What can we say about each subject?
+
+- What does this mean for the overall residuals
+
+```{r}
+ggplot(dat_cc,
+       aes(x=x,
+           y=y, 
+           color=sub_id)) + 
+  geom_point() + 
+  stat_smooth(method=lm,
+              se=F) +
+  guides(color=F)
+```
+
+## How is this different from a (plain) lm?
+
+- $y = b_0 + b_1x_1 + .. + \epsilon$
+
+- This error is unstructured: it's a big amorphous bag of stuff we don't know
+
+- But what if there is some structure to the residuals? E.g., residuals for each person are similar in some way
+
+- One option? Aggregate data points by person
+    - BUT then we're losing information!
+    - One aim here is to not throw out any information unnecessarily
+    
+- Another option? Explicitly include this structure (E.g., by person) in the model
+    - So make sure it's in long format
+
+- $y = b_0 + b_1x_1 + .. + u_0 + \epsilon$
+
+## Ok, so why is this not just like adding another predictor?
+
+- It's a random effect
+- Do we know what determines why one person is doing better overall than another? 
+    - No, because if we did, we'd model *that* variable 
+    - But as it is, we don't know/don't care
+    - We can't control it/control for it
+- It's specific to this data: 
+    - if we did this with another 100 people, we'd get a different set of random intercepts
+  
+## What does this get us, in terms of understanding the study phenomenon?
+
+How much have we added to the model (compared, say, to adding another fixed effect)?
+
+What has it gained us?
+
+## Let's check the model outputs
+
+```{r}
+mod_lm <- lm(y~x,dat_cc)
+summary(mod_lm)
+```
+
+## Let's check the model outputs
+
+(We'll look at this syntax in more detail shortly)
+
+```{r}
+mod_lmer <- lmer(y~x + (1|sub_id),dat_cc)
+summary(mod_lmer)
+```
+
+## Random intercepts vs random slopes
+
+- So far we just had a random intercept (1|sub_id)
+
+- But we could have a random slope, too.
+    - Slope for what? Some or all of the main predictors
+    - here: (1+x|subj_id)
+    
+- Look at the previous plot - does it look like the slopes (for y~x) vary much across participants?
+
+- Add a random slope to the above model, and see what it looks like
+
+## Re-simulate the data to see if we can generate random slopes
+
+```{r}
+set.seed(42)
+dat_cc2 <- sim_mixed_cc(
+    sub_n = 10,   # subject sample size
+    item_n = 10,  # item sample size
+    grand_i = 10,  # overall mean of the score
+    sub_sd = 2,   # SD of subject random intercepts
+    item_sd = 1,  # SD of item random intercepts
+    error_sd = 3,  # SD of residual error
+    empirical = T
+) 
+
+lines <- nrow(dat_cc2)
+beta <- 3
+dat_cc2$x <- rnorm(lines, 10, 3)
+dat_cc2 %<>% 
+  mutate(y = grand_i + beta*x + x*sub_i + err)
+
+ggplot(dat_cc2,aes(x=x,y=y)) + 
+  geom_point() 
+```
+
+```{r}
+ggplot(dat_cc,aes(x=x,y=y,color=sub_id)) + 
+  geom_point() + 
+  stat_smooth(method=lm, se=F) + 
+  guides(color=F)
+```
+
+## Re-simulate the data to see if we can generate random slopes
+
+Let's run the regressions again (including a random slope in the lmer)
+
+What, if anything, has changed?
+
+## Choosing a random effects structure
+
+There is conflicting advice on this:
+
+Keep it simple vs keep it maximal
+
+Barr, D. J., Levy, R., Scheepers, C., & Tily, H. J. (2013). Random effects structure for confirmatory hypothesis testing: Keep it maximal. Journal of Memory and Language, 68(3), 255–278. doi:10.1016/j.jml.2012.11.001
+
+## Exercise
+
+awards
+https://stats.idre.ucla.edu/r/faq/random-coefficient-poisson-models/
+
+
+## Summarising benefits of lmer
+
+- Reasonably robust against missing data/unbalanced designs
+- Carefully weigh the benefits of a within-subjects design
+    - vs. averaging or requiring independent observations
+    - can take the full data into account
+- Hierarchical: children in classes in schools in school districts
+    - `(1|school/participant)`
+- Can allow for quite complex models (if you *really* need such a thing)
+- Very flexible. Can be generalized quite easily 
+    - E.g. if data not normally distributed
+
+## Resources:
+
+(put some in folder)
+

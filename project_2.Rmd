@@ -1,0 +1,63 @@
+---
+title: "Project 1: visualizing correlations"
+date: "08/02/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      warning = FALSE,
+                      message = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(ggcorrplot)
+library(pander)
+library(Hmisc)
+```
+
+WRITE CODE TO DO THE FOLLOWING, INCLUDE IT IN THIS SCRIPT, THEN KNIT THE SCRIPT WHEN READY
+
+# Project: analyse weight ~ height
+
+Previously we focused on modeling weight ~ height for adults, because including children made it non-linear.
+
+Here, we want to understand the full data, by accepting that the effect of height on weight is not constant.
+
+# 1. Get overview of data and strategy
+
+- Load the weight data
+- Make gender a factor with levels "male", "female"
+
+- Plot some of the main relationships (we've already got code for this)
+
+- Outline the two strategies we discussed, when the effect of a variable isn't constant
+
+# 2. Strategy 1
+
+- Conduct an analysis based on the first strategy you identified
+
+- Report the main findings
+
+- Use 'predict' to get the expected values and add them to a plot
+
+# 3. Strategy 2
+
+- Conduct an analysis based on the second strategy you identified
+
+- Report the main findings
+
+- Use 'predict' to get the expected values and add them to a plot
+
+# 4. Do model comparison
+
+Use AIC or BIC to compare the models
+
+Alternatively, install and load the performance package (and use function `performance()`) to see how well your models did
+
+# 5. IF you have time...
+
+go back and try embed the model parameters in the main text so you don't have to copy+paste
+
+try use `pander` to produce nice tables of the model summaries
